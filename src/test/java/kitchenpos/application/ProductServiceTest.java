@@ -1,7 +1,7 @@
 package kitchenpos.application;
 
-import static kitchenpos.utils.TestObjects.*;
 import static org.assertj.core.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.*;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -9,15 +9,12 @@ import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Import;
 
-import kitchenpos.dao.JdbcTemplateProductDao;
-import kitchenpos.domain.Product;
+import kitchenpos.dto.product.ProductRequest;
+import kitchenpos.dto.product.ProductResponse;
 
-@SpringBootTest(classes = {
-        JdbcTemplateProductDao.class,
-        ProductService.class
-})
+@Import(ProductService.class)
 class ProductServiceTest extends ServiceTest {
 
     @Autowired
@@ -26,42 +23,27 @@ class ProductServiceTest extends ServiceTest {
     @DisplayName("create: 상품 생성")
     @Test
     void create() {
-        final Product product = createProduct("매콤치킨", BigDecimal.valueOf(16000));
-        final Product actual = productService.create(product);
+        final ProductRequest productRequest = new ProductRequest("매콤치킨", BigDecimal.valueOf(16000));
+        final ProductResponse actual = productService.create(productRequest);
 
-        assertThat(actual).isNotNull();
-        assertThat(actual.getId()).isNotNull();
-        assertThat(actual.getName()).isEqualTo("매콤치킨");
-        assertThat(actual.getPrice()).isEqualByComparingTo(BigDecimal.valueOf(16000));
-    }
-
-    @DisplayName("create: 상품의 가격이 null일 때 예외 처리")
-    @Test
-    void create_IfPriceIsNull_Exception() {
-        final Product product = createProduct("매콤치킨", null);
-
-        assertThatThrownBy(() ->productService.create(product))
-                .isInstanceOf(IllegalArgumentException.class);
-    }
-
-    @DisplayName("create: 상품의 가격이 음수일 때 예외 처리")
-    @Test
-    void create_IfPriceIsNegative_Exception() {
-        final Product product = createProduct("매콤치킨", BigDecimal.valueOf(-1));
-
-        assertThatThrownBy(() ->productService.create(product))
-                .isInstanceOf(IllegalArgumentException.class);
+        assertAll(
+                () -> assertThat(actual).isNotNull(),
+                () -> assertThat(actual.getId()).isNotNull(),
+                () -> assertThat(actual.getName()).isEqualTo("매콤치킨"),
+                () -> assertThat(actual.getPrice()).isEqualByComparingTo(BigDecimal.valueOf(16000))
+        );
     }
 
     @DisplayName("list: 상품 전체 조회")
     @Test
     void list() {
-        final Product product = createProduct("매콤치킨", BigDecimal.valueOf(16000));
-        productService.create(product);
+        final ProductRequest productRequest1 = new ProductRequest("매콤치킨", BigDecimal.valueOf(16000));
+        final ProductRequest productRequest2 = new ProductRequest("간장치킨", BigDecimal.valueOf(16000));
+        productService.create(productRequest1);
+        productService.create(productRequest2);
 
-        final List<Product> products = productService.list();
+        final List<ProductResponse> actual = productService.list();
 
-        assertThat(products).isNotEmpty();
-        assertThat(products).hasSize(1);
+        assertThat(actual).hasSize(2);
     }
 }

@@ -1,43 +1,37 @@
 package kitchenpos.application;
 
-import static kitchenpos.utils.TestObjects.*;
 import static org.assertj.core.api.Assertions.*;
 import static org.junit.jupiter.api.Assertions.*;
 
+import java.time.LocalDateTime;
 import java.util.Arrays;
-import java.util.Collections;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Import;
 
-import kitchenpos.dao.JdbcTemplateOrderDao;
-import kitchenpos.dao.JdbcTemplateOrderTableDao;
-import kitchenpos.dao.JdbcTemplateTableGroupDao;
-import kitchenpos.dao.OrderDao;
-import kitchenpos.dao.OrderTableDao;
-import kitchenpos.dao.TableGroupDao;
-import kitchenpos.domain.OrderTable;
-import kitchenpos.domain.TableGroup;
+import kitchenpos.domain.order.Order;
+import kitchenpos.domain.table.OrderTable;
+import kitchenpos.domain.tablegroup.TableGroup;
+import kitchenpos.dto.tablegroup.TableGroupRequest;
+import kitchenpos.dto.tablegroup.TableGroupResponse;
+import kitchenpos.repository.OrderRepository;
+import kitchenpos.repository.OrderTableRepository;
+import kitchenpos.repository.TableGroupRepository;
 
-@SpringBootTest(classes = {
-        JdbcTemplateOrderDao.class,
-        JdbcTemplateOrderTableDao.class,
-        JdbcTemplateTableGroupDao.class,
-        TableGroupService.class
-})
+@Import(TableGroupService.class)
 class TableGroupServiceTest extends ServiceTest {
 
     @Autowired
-    private OrderTableDao orderTableDao;
+    private OrderTableRepository orderTableRepository;
 
     @Autowired
-    private TableGroupDao tableGroupDao;
+    private TableGroupRepository tableGroupRepository;
 
     @Autowired
-    private OrderDao orderDao;
+    private OrderRepository orderRepository;
 
     @Autowired
     private TableGroupService tableGroupService;
@@ -46,92 +40,72 @@ class TableGroupServiceTest extends ServiceTest {
 
     private OrderTable orderTable2;
 
-    private OrderTable notEmptyOrderTable;
-
-    private OrderTable orderTableHasTableGroupId;
-
     @BeforeEach
     void setUp() {
-        orderTable1 = orderTableDao.save(createOrderTable(null, 0, true));
-        orderTable2 = orderTableDao.save(createOrderTable(null, 0, true));
-        notEmptyOrderTable = orderTableDao.save(createOrderTable(null, 2, false));
-
-        final TableGroup tableGroup = tableGroupDao.save(createTableGroup(Arrays.asList(orderTable1, orderTable2)));
-        orderTableHasTableGroupId = orderTableDao.save(createOrderTable(tableGroup.getId(), 0, true));
+        orderTable1 = orderTableRepository.save(new OrderTable(0, true));
+        orderTable2 = orderTableRepository.save(new OrderTable(0, true));
     }
 
     @DisplayName("create: 테이블 그룹 생성")
     @Test
     void create() {
-        final TableGroup tableGroup = createTableGroup(Arrays.asList(orderTable1, orderTable2));
-        final TableGroup actual = tableGroupService.create(tableGroup);
+        final TableGroupRequest tableGroupRequest = new TableGroupRequest(Arrays.asList(orderTable1.getId(), orderTable2.getId()));
+        final TableGroupResponse actual = tableGroupService.create(tableGroupRequest);
 
-        assertThat(actual).isNotNull();
-        assertThat(actual.getOrderTables()).isNotEmpty();
-        assertThat(actual.getOrderTables()).hasSize(2);
-    }
-
-    @DisplayName("create: 주문 테이블이 빈 목록일 때 예외 처리")
-    @Test
-    void create_IfOrderTablesIsEmpty_Exception() {
-        final TableGroup tableGroup = createTableGroup(Collections.emptyList());
-
-        assertThatThrownBy(() -> tableGroupService.create(tableGroup))
-                .isInstanceOf(IllegalArgumentException.class);
-    }
-
-    @DisplayName("create: 주문 테이블이 2개 미만일 때 예외 처리")
-    @Test
-    void create_IfOrderTablesIsLessThanTwo_Exception() {
-        final TableGroup tableGroup = createTableGroup(Collections.singletonList(orderTable1));
-
-        assertThatThrownBy(() -> tableGroupService.create(tableGroup))
-                .isInstanceOf(IllegalArgumentException.class);
+        assertAll(
+                () -> assertThat(actual).isNotNull(),
+                () -> assertThat(actual.getOrderTableResponses()).hasSize(2)
+        );
     }
 
     @DisplayName("create: 주문 테이블이 사이즈와 조회 사이즈가 같지 않을 때 예외 처리")
     @Test
     void create_IfOrderTablesNotSameFindOrderTables_Exception() {
-        orderTable1.setId(0L);
-        final TableGroup tableGroup = createTableGroup(Arrays.asList(orderTable1, orderTable2));
+        final TableGroupRequest tableGroupRequest = new TableGroupRequest(Arrays.asList(0L, orderTable2.getId()));
 
-        assertThatThrownBy(() -> tableGroupService.create(tableGroup))
+        assertThatThrownBy(() -> tableGroupService.create(tableGroupRequest))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
     @DisplayName("create: 주문 테이블이 비어 있을 때(empty=true) 예외 처리")
     @Test
     void create_IfOrderTableIsEmpty_Exception() {
-        final TableGroup tableGroup = createTableGroup(Arrays.asList(notEmptyOrderTable, orderTable2));
+        final OrderTable notEmptyOrderTable = orderTableRepository.save(new OrderTable(2, false));
+        final TableGroupRequest tableGroupRequest = new TableGroupRequest(Arrays.asList(notEmptyOrderTable.getId(), orderTable2.getId()));
 
-        assertThatThrownBy(() -> tableGroupService.create(tableGroup))
+        assertThatThrownBy(() -> tableGroupService.create(tableGroupRequest))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
     @DisplayName("create: 주문 테이블에 주문 그룹이 존재할 때 예외 처리")
     @Test
     void create_IfTableGroupExistInOrderTable_Exception() {
-        final TableGroup tableGroup = createTableGroup(Arrays.asList(orderTableHasTableGroupId, orderTable2));
+        final TableGroup tableGroup = tableGroupRepository.save(new TableGroup(LocalDateTime.now()));
+        final OrderTable orderTableHasTableGroupId = orderTableRepository.save(new OrderTable(0, true));
+        orderTableHasTableGroupId.updateTableGroup(tableGroup);
+        orderTableRepository.save(orderTableHasTableGroupId);
 
-        assertThatThrownBy(() -> tableGroupService.create(tableGroup))
+        final TableGroupRequest tableGroupRequest = new TableGroupRequest(Arrays.asList(orderTableHasTableGroupId.getId(), orderTable2.getId()));
+
+        assertThatThrownBy(() -> tableGroupService.create(tableGroupRequest))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
     @DisplayName("ungroup: 그룹 해제")
     @Test
     void ungroup() {
-        final TableGroup tableGroup = tableGroupService.create(createTableGroup(Arrays.asList(orderTable1, orderTable2)));
+        final TableGroupResponse tableGroupResponse = tableGroupService.create(new TableGroupRequest(Arrays.asList(orderTable1.getId(), orderTable2.getId())));
 
-        assertDoesNotThrow(() -> tableGroupService.ungroup(tableGroup.getId()));
+        assertDoesNotThrow(() -> tableGroupService.ungroup(tableGroupResponse.getId()));
     }
 
     @DisplayName("ungroup: 주문이 완료되지 않았을 때 예외 처리")
     @Test
     void ungroup_IfOrderStatusIsNotCompletion_Exception() {
-        final TableGroup tableGroup = tableGroupService.create(createTableGroup(Arrays.asList(orderTable1, orderTable2)));
-        orderDao.save(createOrder(orderTable1.getId(), "MEAL", Collections.emptyList()));
+        final TableGroupResponse tableGroupResponse = tableGroupService.create(new TableGroupRequest((Arrays.asList(orderTable1.getId(), orderTable2.getId()))));
+        orderRepository.save(new Order(orderTable1, "MEAL", LocalDateTime.now()));
 
-        assertThatThrownBy(() -> tableGroupService.ungroup(tableGroup.getId()))
+        assertThatThrownBy(() -> tableGroupService.ungroup(tableGroupResponse.getId()))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 }
