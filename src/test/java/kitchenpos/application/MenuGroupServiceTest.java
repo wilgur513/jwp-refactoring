@@ -1,7 +1,7 @@
 package kitchenpos.application;
 
-import kitchenpos.TestDomainFactory;
-import kitchenpos.domain.MenuGroup;
+import kitchenpos.dto.menugroup.MenuGroupCreateRequest;
+import kitchenpos.dto.menugroup.MenuGroupResponse;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -24,30 +24,27 @@ class MenuGroupServiceTest {
     @DisplayName("새로운 메뉴 그룹 생성")
     @Test
     void createMenuGroupTest() {
-        MenuGroup menuGroup = TestDomainFactory.createMenuGroup("반마리메뉴");
+        MenuGroupCreateRequest menuGroupCreateRequest = new MenuGroupCreateRequest("반마리메뉴");
 
-        MenuGroup savedMenuGroup = this.menuGroupService.create(menuGroup);
+        MenuGroupResponse menuGroupResponse = this.menuGroupService.createMenuGroup(menuGroupCreateRequest);
 
         assertAll(
-                () -> assertThat(savedMenuGroup).isNotNull(),
-                () -> assertThat(savedMenuGroup.getName()).isEqualTo(menuGroup.getName())
+                () -> assertThat(menuGroupResponse).isNotNull(),
+                () -> assertThat(menuGroupResponse.getName()).isEqualTo(menuGroupCreateRequest.getName())
         );
     }
 
     @DisplayName("존재하는 모든 메뉴 그룹을 조회")
     @Test
     void listMenuGroupTest() {
-        MenuGroup menuGroup1 = TestDomainFactory.createMenuGroup("두마리메뉴");
-        MenuGroup menuGroup2 = TestDomainFactory.createMenuGroup("세마리메뉴");
-        List<MenuGroup> menuGroups = Arrays.asList(menuGroup1, menuGroup2);
-        menuGroups.forEach(menuGroup -> this.menuGroupService.create(menuGroup));
+        MenuGroupCreateRequest menuGroupCreateRequest1 = new MenuGroupCreateRequest("두마리메뉴");
+        MenuGroupCreateRequest menuGroupCreateRequest2 = new MenuGroupCreateRequest("세마리메뉴");
+        List<MenuGroupCreateRequest> menuGroupCreateRequests = Arrays.asList(menuGroupCreateRequest1,
+                                                                             menuGroupCreateRequest2);
+        menuGroupCreateRequests.forEach(menuGroupCreateRequest -> this.menuGroupService.createMenuGroup(menuGroupCreateRequest));
 
-        List<MenuGroup> actualMenuGroups = this.menuGroupService.list();
+        List<MenuGroupResponse> menuGroupResponses = this.menuGroupService.listAllMenuGroups();
 
-        assertAll(
-                () -> assertThat(actualMenuGroups.size()).isEqualTo(menuGroups.size()),
-                () -> assertThat(actualMenuGroups.get(0).getName()).isEqualTo(menuGroup1.getName()),
-                () -> assertThat(actualMenuGroups.get(1).getName()).isEqualTo(menuGroup2.getName())
-        );
+        assertThat(menuGroupResponses).hasSize(menuGroupCreateRequests.size());
     }
 }

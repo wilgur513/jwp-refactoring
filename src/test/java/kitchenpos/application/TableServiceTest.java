@@ -1,12 +1,20 @@
 package kitchenpos.application;
 
-import kitchenpos.TestDomainFactory;
-import kitchenpos.dao.OrderDao;
-import kitchenpos.dao.OrderTableDao;
-import kitchenpos.dao.TableGroupDao;
-import kitchenpos.domain.Order;
-import kitchenpos.domain.OrderTable;
-import kitchenpos.domain.TableGroup;
+import kitchenpos.domain.order.Order;
+import kitchenpos.domain.order.OrderStatus;
+import kitchenpos.domain.table.NumberOfGuests;
+import kitchenpos.domain.table.OrderTable;
+import kitchenpos.domain.table.TableGroup;
+import kitchenpos.dto.ordertable.OrderTableChangeEmptyRequest;
+import kitchenpos.dto.ordertable.OrderTableChangeNumberOfGuestsRequest;
+import kitchenpos.dto.ordertable.OrderTableCreateRequest;
+import kitchenpos.dto.ordertable.OrderTableResponse;
+import kitchenpos.exception.InvalidNumberOfGuestsException;
+import kitchenpos.exception.InvalidOrderTableException;
+import kitchenpos.exception.OrderTableNotFoundException;
+import kitchenpos.repository.OrderRepository;
+import kitchenpos.repository.OrderTableRepository;
+import kitchenpos.repository.TableGroupRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -32,61 +40,59 @@ class TableServiceTest {
     private TableService tableService;
 
     @Autowired
-    private OrderTableDao orderTableDao;
+    private OrderTableRepository orderTableRepository;
 
     @Autowired
-    private OrderDao orderDao;
+    private OrderRepository orderRepository;
 
     @Autowired
-    private TableGroupDao tableGroupDao;
+    private TableGroupRepository tableGroupRepository;
 
     @DisplayName("새로운 테이블 생성")
     @ParameterizedTest
     @CsvSource(value = {"0,false", "0,true", "2,false", "2,true"})
     void createTableTest(int numberOfGuests, boolean isEmpty) {
-        OrderTable orderTable = TestDomainFactory.createOrderTable(numberOfGuests, isEmpty);
+        OrderTableCreateRequest orderTableCreateRequest = new OrderTableCreateRequest(numberOfGuests, isEmpty);
 
-        OrderTable savedOrderTable = this.tableService.create(orderTable);
+        OrderTableResponse orderTableResponse = this.tableService.createOrderTable(orderTableCreateRequest);
 
         assertAll(
-                () -> assertThat(savedOrderTable).isNotNull(),
-                () -> assertThat(savedOrderTable.getTableGroupId()).isNull(),
-                () -> assertThat(savedOrderTable.getNumberOfGuests()).isEqualTo(orderTable.getNumberOfGuests()),
-                () -> assertThat(savedOrderTable.isEmpty()).isEqualTo(orderTable.isEmpty())
+                () -> assertThat(orderTableResponse).isNotNull(),
+                () -> assertThat(orderTableResponse.getTableGroupId()).isNull(),
+                () -> assertThat(orderTableResponse.getNumberOfGuests()).isEqualTo(orderTableCreateRequest.getNumberOfGuests()),
+                () -> assertThat(orderTableResponse.isEmpty()).isEqualTo(orderTableCreateRequest.isEmpty())
         );
     }
 
     @DisplayName("존재하는 모든 테이블을 조회")
     @Test
     void listTableTest() {
-        OrderTable orderTable1 = TestDomainFactory.createOrderTable(1, true);
-        OrderTable orderTable2 = TestDomainFactory.createOrderTable(3, false);
-        List<OrderTable> orderTables = Arrays.asList(orderTable1, orderTable2);
-        orderTables.forEach(orderTable -> this.tableService.create(orderTable));
+        OrderTableCreateRequest orderTableCreateRequest1 = new OrderTableCreateRequest(1, true);
+        OrderTableCreateRequest orderTableCreateRequest2 = new OrderTableCreateRequest(3, false);
+        List<OrderTableCreateRequest> orderTableCreateRequests = Arrays.asList(orderTableCreateRequest1,
+                                                                               orderTableCreateRequest2);
+        orderTableCreateRequests.forEach(orderTableCreateRequest -> this.tableService.createOrderTable(orderTableCreateRequest));
 
-        List<OrderTable> savedOrderTables = this.tableService.list();
+        List<OrderTableResponse> orderTableResponses = this.tableService.listAllOrderTables();
 
-        assertAll(
-                () -> assertThat(savedOrderTables.size()).isEqualTo(orderTables.size()),
-                () -> assertThat(savedOrderTables.get(0).getNumberOfGuests()).isEqualTo(orderTable1.getNumberOfGuests()),
-                () -> assertThat(savedOrderTables.get(1).getNumberOfGuests()).isEqualTo(orderTable2.getNumberOfGuests())
-        );
+        assertThat(orderTableResponses).hasSize(orderTableCreateRequests.size());
     }
 
     @DisplayName("특정 주문 테이블의 주문 등록 가능 여부, 즉 빈 테이블 여부를 변경")
     @ParameterizedTest
     @CsvSource(value = {"2,false", "2,true"})
     void changeEmptyTest(int numberOfGuests, boolean isEmpty) {
-        OrderTable orderTable1 = TestDomainFactory.createOrderTable(numberOfGuests, isEmpty);
-        OrderTable savedOrderTable = this.tableService.create(orderTable1);
-        OrderTable orderTable2 = TestDomainFactory.createOrderTable(numberOfGuests, !isEmpty);
+        OrderTableCreateRequest orderTableCreateRequest = new OrderTableCreateRequest(numberOfGuests, isEmpty);
+        OrderTableResponse orderTableCreateResponse = this.tableService.createOrderTable(orderTableCreateRequest);
+        OrderTableChangeEmptyRequest orderTableChangeEmptyRequest = new OrderTableChangeEmptyRequest(!isEmpty);
 
-        OrderTable changedOrderTable = this.tableService.changeEmpty(savedOrderTable.getId(), orderTable2);
+        OrderTableResponse orderTableChangeResponse = this.tableService.changeEmpty(orderTableCreateResponse.getId(),
+                                                                                    orderTableChangeEmptyRequest);
 
         assertAll(
-                () -> assertThat(changedOrderTable.isEmpty()).isEqualTo(orderTable2.isEmpty()),
-                () -> assertThat(!savedOrderTable.isEmpty()).isEqualTo(changedOrderTable.isEmpty()),
-                () -> assertThat(changedOrderTable.getNumberOfGuests()).isEqualTo(savedOrderTable.getNumberOfGuests())
+                () -> assertThat(orderTableChangeResponse.isEmpty()).isEqualTo(orderTableChangeEmptyRequest.isEmpty()),
+                () -> assertThat(orderTableChangeResponse.isEmpty()).isEqualTo(!orderTableCreateRequest.isEmpty()),
+                () -> assertThat(orderTableChangeResponse.getNumberOfGuests()).isEqualTo(orderTableCreateRequest.getNumberOfGuests())
         );
     }
 
@@ -94,96 +100,97 @@ class TableServiceTest {
     @Test
     void changeEmptyWithNotExistOrderTableThenThrowException() {
         long notExistOrderTableId = -1L;
-        OrderTable orderTable = TestDomainFactory.createOrderTable(0, false);
+        OrderTableChangeEmptyRequest orderTableChangeEmptyRequest = new OrderTableChangeEmptyRequest(false);
 
-        assertThatThrownBy(() -> this.tableService.changeEmpty(notExistOrderTableId, orderTable))
-                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> this.tableService.changeEmpty(notExistOrderTableId, orderTableChangeEmptyRequest))
+                .isInstanceOf(OrderTableNotFoundException.class);
     }
 
     @DisplayName("특정 주문 테이블의 주문 등록 가능 여부를 변경할 때, 특정 주문 테이블에 단체 지정이 있으면 예외 발생")
     @Test
     void changeEmptyWithOrderTableInTableGroupThenThrowException() {
-        OrderTable orderTable1 = TestDomainFactory.createOrderTable(0, false);
-        OrderTable orderTable2 = TestDomainFactory.createOrderTable(2, true);
+        OrderTable orderTable1 = new OrderTable(NumberOfGuests.from(0), false);
+        OrderTable orderTable2 = new OrderTable(NumberOfGuests.from(2), true);
         TableGroup savedTableGroup = createSavedTableGroup(LocalDateTime.now(), Arrays.asList(orderTable1,
                                                                                               orderTable2));
 
-        orderTable1.setTableGroupId(savedTableGroup.getId());
-        OrderTable savedOrderTable = this.orderTableDao.save(orderTable1);
+        orderTable1.setTableGroup(savedTableGroup);
+        OrderTable savedOrderTable = this.orderTableRepository.save(orderTable1);
 
-        assertThatThrownBy(() -> this.tableService.changeEmpty(savedOrderTable.getId(), orderTable2))
-                .isInstanceOf(IllegalArgumentException.class);
+        OrderTableChangeEmptyRequest orderTableChangeEmptyRequest = new OrderTableChangeEmptyRequest(false);
+
+        assertThatThrownBy(() -> this.tableService.changeEmpty(savedOrderTable.getId(), orderTableChangeEmptyRequest))
+                .isInstanceOf(InvalidOrderTableException.class);
     }
 
     @DisplayName("특정 주문 테이블의 주문 등록 가능 여부를 변경할 때, 특정 주문 테이블의 주문 상태가 조리 혹은 식사이면 예외 발생")
     @ParameterizedTest
     @ValueSource(strings = {"COOKING", "MEAL"})
     void changeEmptyWithOrderTableInCookingOrMealThenThrowException(String orderStatus) {
-        OrderTable orderTable1 = TestDomainFactory.createOrderTable(0, false);
-        OrderTable savedOrderTable1 = this.orderTableDao.save(orderTable1);
-        OrderTable orderTable2 = TestDomainFactory.createOrderTable(2, true);
+        OrderTable orderTable1 = new OrderTable(NumberOfGuests.from(0), false);
+        OrderTable savedOrderTable1 = this.orderTableRepository.save(orderTable1);
+        createSavedOrder(savedOrderTable1, OrderStatus.from(orderStatus));
 
-        createSavedOrder(savedOrderTable1.getId(), orderStatus);
+        OrderTableChangeEmptyRequest orderTableChangeEmptyRequest = new OrderTableChangeEmptyRequest(true);
 
-        assertThatThrownBy(() -> this.tableService.changeEmpty(savedOrderTable1.getId(), orderTable2))
-                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> this.tableService.changeEmpty(savedOrderTable1.getId(), orderTableChangeEmptyRequest))
+                .isInstanceOf(InvalidOrderTableException.class);
     }
 
     @DisplayName("특정 주문 테이블의 방문 손님 수를 변경")
     @Test
     void changeNumberOfGuestsTest() {
-        OrderTable orderTable1 = TestDomainFactory.createOrderTable(0, false);
-        OrderTable savedOrderTable = this.tableService.create(orderTable1);
-        OrderTable orderTable2 = TestDomainFactory.createOrderTable(2, true);
+        OrderTableCreateRequest orderTableCreateRequest = new OrderTableCreateRequest(0, false);
+        OrderTableResponse orderTableCreateResponse = this.tableService.createOrderTable(orderTableCreateRequest);
+        OrderTableChangeNumberOfGuestsRequest orderTableChangeNumberOfGuestsRequest = new OrderTableChangeNumberOfGuestsRequest(2);
 
-        OrderTable changedOrderTable = this.tableService.changeNumberOfGuests(savedOrderTable.getId(), orderTable2);
+        OrderTableResponse orderTableChangeResponse =
+                this.tableService.changeNumberOfGuests(orderTableCreateResponse.getId(), orderTableChangeNumberOfGuestsRequest);
 
-        assertThat(changedOrderTable.getNumberOfGuests()).isEqualTo(orderTable2.getNumberOfGuests());
+        assertThat(orderTableChangeResponse.getNumberOfGuests()).isEqualTo(orderTableChangeNumberOfGuestsRequest.getNumberOfGuests());
     }
 
     @DisplayName("특정 주문 테이블의 방문 손님 수를 변경할 때, 손님 수가 0 미만이면 예외 발생")
     @ParameterizedTest
     @ValueSource(ints = {-1, -2, -10})
     void changeNumberOfGuestsUnderZeroThenThrowException(int invalidNumberOfGuests) {
-        OrderTable orderTable1 = TestDomainFactory.createOrderTable(0, false);
-        OrderTable savedOrderTable = this.tableService.create(orderTable1);
-        OrderTable orderTable2 = TestDomainFactory.createOrderTable(invalidNumberOfGuests, true);
+        OrderTableCreateRequest orderTableCreateRequest = new OrderTableCreateRequest(0, false);
+        OrderTableResponse orderTableResponse = this.tableService.createOrderTable(orderTableCreateRequest);
+        OrderTableChangeNumberOfGuestsRequest orderTableChangeNumberOfGuestsRequest = new OrderTableChangeNumberOfGuestsRequest(invalidNumberOfGuests);
 
-        assertThatThrownBy(() -> this.tableService.changeNumberOfGuests(savedOrderTable.getId(), orderTable2))
-                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> this.tableService.changeNumberOfGuests(orderTableResponse.getId(), orderTableChangeNumberOfGuestsRequest))
+                .isInstanceOf(InvalidNumberOfGuestsException.class);
     }
 
     @DisplayName("특정 주문 테이블의 방문 손님 수를 변경할 때, 특정 주문 테이블이 존재하는 주문 테이블이 아니면 예외 발생")
     @Test
     void changeNumberOfGuestsWithNotExistOrderTableThenThrowException() {
         long notExistOrderTableId = -1L;
-        OrderTable orderTable = TestDomainFactory.createOrderTable(0, false);
+        OrderTableChangeNumberOfGuestsRequest orderTableChangeNumberOfGuestsRequest = new OrderTableChangeNumberOfGuestsRequest(0);
 
-        assertThatThrownBy(() -> this.tableService.changeNumberOfGuests(notExistOrderTableId, orderTable))
-                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> this.tableService.changeNumberOfGuests(notExistOrderTableId, orderTableChangeNumberOfGuestsRequest))
+                .isInstanceOf(OrderTableNotFoundException.class);
     }
 
     @DisplayName("특정 주문 테이블의 방문 손님 수를 변경할 때, 특정 주문 테이블이 주문을 등록할 수 없으면(빈 테이블이면) 예외 발생")
     @Test
     void changeNumberOfGuestsWithEmptyOrderTableThenThrowException() {
-        OrderTable orderTable1 = TestDomainFactory.createOrderTable(0, true);
-        OrderTable savedOrderTable = this.tableService.create(orderTable1);
-        OrderTable orderTable2 = TestDomainFactory.createOrderTable(2, true);
+        OrderTableCreateRequest orderTableCreateRequest = new OrderTableCreateRequest(0, true);
+        OrderTableResponse orderTableResponse = this.tableService.createOrderTable(orderTableCreateRequest);
+        OrderTableChangeNumberOfGuestsRequest orderTableChangeNumberOfGuestsRequest = new OrderTableChangeNumberOfGuestsRequest(2);
 
-        assertThatThrownBy(() -> this.tableService.changeNumberOfGuests(savedOrderTable.getId(), orderTable2))
-                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> this.tableService.changeNumberOfGuests(orderTableResponse.getId(),
+                                                                        orderTableChangeNumberOfGuestsRequest))
+                .isInstanceOf(InvalidOrderTableException.class);
     }
 
-    private Order createSavedOrder(long orderTableId, String orderStatus) {
-        Order order = TestDomainFactory.createOrder(orderTableId);
-        order.setOrderedTime(LocalDateTime.now());
-        order.setOrderStatus(orderStatus);
-
-        return this.orderDao.save(order);
+    private Order createSavedOrder(OrderTable orderTable, OrderStatus orderStatus) {
+        Order order = new Order(orderTable, orderStatus, LocalDateTime.now());
+        return this.orderRepository.save(order);
     }
 
     private TableGroup createSavedTableGroup(LocalDateTime createdDate, List<OrderTable> orderTables) {
-        TableGroup tableGroup = TestDomainFactory.createTableGroup(createdDate, orderTables);
-        return this.tableGroupDao.save(tableGroup);
+        TableGroup tableGroup = new TableGroup(createdDate, orderTables);
+        return this.tableGroupRepository.save(tableGroup);
     }
 }
