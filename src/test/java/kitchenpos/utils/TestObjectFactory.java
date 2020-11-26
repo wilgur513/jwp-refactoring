@@ -13,7 +13,6 @@ import kitchenpos.domain.OrderStatus;
 import kitchenpos.domain.OrderTable;
 import kitchenpos.domain.Price;
 import kitchenpos.domain.Product;
-import kitchenpos.domain.TableGroup;
 import kitchenpos.dto.MenuCreateRequest;
 import kitchenpos.dto.MenuGroupCreateRequest;
 import kitchenpos.dto.OrderChangeRequest;
@@ -34,9 +33,9 @@ public class TestObjectFactory {
 
     public static MenuCreateRequest createMenuCreateRequest(String name, BigDecimal price,
         MenuGroup menuGroup, List<MenuProduct> menuProducts) {
-        Menu menu = new Menu(name, Price.of(price), menuGroup, menuProducts);
+        Menu menu = new Menu(name, Price.of(price), menuGroup);
 
-        return MenuCreateRequest.of(menu);
+        return MenuCreateRequest.of(menu, menuProducts);
     }
 
     public static ProductCreateRequest createProductCreateRequest(String name, BigDecimal price) {
@@ -47,10 +46,9 @@ public class TestObjectFactory {
 
     public static OrderCreateRequest createOrderCreateRequest(OrderTable orderTable,
         String orderStatus, List<OrderLineItem> orderLineItems) {
-        Order order = Order.of(orderTable, OrderStatus.valueOf(orderStatus),
-            LocalDateTime.now(), orderLineItems);
+        Order order = Order.of(orderTable, OrderStatus.valueOf(orderStatus), LocalDateTime.now());
 
-        return OrderCreateRequest.of(order);
+        return OrderCreateRequest.of(order, orderLineItems);
     }
 
     public static OrderChangeRequest createOrderChangeRequest(String orderStatus) {
@@ -75,9 +73,7 @@ public class TestObjectFactory {
             orderTables.add(new OrderTable(id, null, numberOfGuests, empty));
         }
 
-        TableGroup tableGroup = new TableGroup(LocalDateTime.now(), orderTables);
-
-        return TableGroupCreateRequest.of(tableGroup);
+        return TableGroupCreateRequest.of(orderTables);
     }
 
     public static OrderTableCreateRequest createOrderTableCreateRequest(int numberOfGuests,
