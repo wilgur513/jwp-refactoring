@@ -5,22 +5,23 @@ import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
 import kitchenpos.menu.domain.MenuDao;
+import kitchenpos.menu.domain.MenuProducts;
 import kitchenpos.menugroup.domain.MenuGroupDao;
 import kitchenpos.menu.domain.MenuProductDao;
 import kitchenpos.order.domain.OrderDao;
 import kitchenpos.order.domain.OrderLineItemDao;
-import kitchenpos.table.domain.OrderTableDao;
+import kitchenpos.ordertable.domain.OrderTableDao;
 import kitchenpos.product.domain.ProductDao;
-import kitchenpos.table.domain.TableGroupDao;
+import kitchenpos.tablegroup.domain.TableGroupDao;
 import kitchenpos.menu.domain.Menu;
 import kitchenpos.menugroup.domain.MenuGroup;
 import kitchenpos.menu.domain.MenuProduct;
 import kitchenpos.order.domain.Order;
 import kitchenpos.order.domain.OrderLineItem;
 import kitchenpos.order.domain.OrderStatus;
-import kitchenpos.table.domain.OrderTable;
+import kitchenpos.ordertable.domain.OrderTable;
 import kitchenpos.product.domain.Product;
-import kitchenpos.table.domain.TableGroup;
+import kitchenpos.tablegroup.domain.TableGroup;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -89,7 +90,7 @@ public class FixtureMaker {
     public Menu createMenu() {
         MenuGroup menuGroup = createMenuGroup();
         List<MenuProduct> menuProducts = createMenuProducts(menuGroup.getId());
-        return menuDao.save(new Menu("메뉴", new BigDecimal(1000), menuGroup.getId(), menuProducts));
+        return menuDao.save(new Menu("메뉴", new BigDecimal(1000), menuGroup.getId(), new MenuProducts(menuProducts)));
     }
 
     public Order createOrder() {
