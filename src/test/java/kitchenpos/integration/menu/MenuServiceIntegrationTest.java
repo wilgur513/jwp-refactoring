@@ -5,238 +5,173 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.math.BigDecimal;
 import java.util.Collections;
-import java.util.List;
-import kitchenpos.domain.Menu;
-import kitchenpos.domain.MenuProduct;
-import kitchenpos.domain.Product;
+import kitchenpos.application.dto.request.MenuGroupRequestDto;
+import kitchenpos.application.dto.request.MenuProductRequestDto;
+import kitchenpos.application.dto.request.MenuRequestDto;
+import kitchenpos.application.dto.request.ProductRequestDto;
+import kitchenpos.application.dto.response.MenuGroupResponseDto;
+import kitchenpos.application.dto.response.MenuResponseDto;
+import kitchenpos.application.dto.response.ProductResponseDto;
 import kitchenpos.integration.IntegrationTest;
 import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 class MenuServiceIntegrationTest extends IntegrationTest {
 
-    @DisplayName("메뉴를 등록한다.")
-    @Nested
-    class Create {
+    @DisplayName("메뉴를 등록할 수 있다.")
+    @Test
+    void create_Valid_Success() {
+        // given
+        ProductResponseDto productResponseDto = productService
+            .create(new ProductRequestDto("얌 프라이", BigDecimal.valueOf(8000)));
+        MenuGroupResponseDto menuGroupResponseDto = menuGroupService
+            .create(new MenuGroupRequestDto("시즌 메뉴"));
 
-        @DisplayName("메뉴를 등록할 수 있다.")
-        @Test
-        void create_Valid_Success() {
-            // given
-            Product product = new Product();
-            product.setName("얌 프라이");
-            product.setPrice(BigDecimal.valueOf(8000, 2));
+        MenuProductRequestDto menuProduct = new MenuProductRequestDto(
+            productResponseDto.getId(),
+            2L
+        );
+        MenuRequestDto requestDto = new MenuRequestDto(
+            "얌 프라이",
+            BigDecimal.valueOf(8000),
+            menuGroupResponseDto.getId(),
+            Collections.singletonList(menuProduct)
+        );
 
-            Product savedProduct = productService.create(product);
+        // when
+        MenuResponseDto responseDto = menuService.create(requestDto);
 
-            MenuProduct menuProduct = new MenuProduct();
-            menuProduct.setMenuId(7L);
-            menuProduct.setProductId(savedProduct.getId());
-            menuProduct.setQuantity(3);
-
-            Menu menu = new Menu();
-            menu.setName("얌 프라이");
-            menu.setPrice(BigDecimal.valueOf(8000, 2));
-            menu.setMenuGroupId(4L);
-            menu.setMenuProducts(Collections.singletonList(menuProduct));
-
-            // when
-            Menu savedMenu = menuService.create(menu);
-
-            // then
-            assertThat(savedMenu)
-                .usingRecursiveComparison()
-                .ignoringFields("id", "menuProducts.seq")
-                .isEqualTo(menu);
-        }
-
-        @DisplayName("메뉴의 가격이 올바르지 않으면 등록할 수 없다. - null인 경우")
-        @Test
-        void create_InvalidPriceWithNull_Fail() {
-            // given
-            Product product = new Product();
-            product.setName("얌 프라이");
-            product.setPrice(BigDecimal.valueOf(8000, 2));
-
-            Product savedProduct = productService.create(product);
-
-            MenuProduct menuProduct = new MenuProduct();
-            menuProduct.setMenuId(7L);
-            menuProduct.setProductId(savedProduct.getId());
-            menuProduct.setQuantity(3);
-
-            Menu menu = new Menu();
-            menu.setName("얌 프라이");
-            menu.setMenuGroupId(4L);
-            menu.setMenuProducts(Collections.singletonList(menuProduct));
-
-            // when
-            // then
-            assertThatThrownBy(() -> menuService.create(menu))
-                .isInstanceOf(IllegalArgumentException.class);
-        }
-
-        @DisplayName("메뉴의 가격이 올바르지 않으면 등록할 수 없다. - 0 이하인 경우")
-        @Test
-        void create_InvalidPriceWithNegative_Fail() {
-            // given
-            Product product = new Product();
-            product.setName("얌 프라이");
-            product.setPrice(BigDecimal.valueOf(8000, 2));
-
-            Product savedProduct = productService.create(product);
-
-            MenuProduct menuProduct = new MenuProduct();
-            menuProduct.setMenuId(7L);
-            menuProduct.setProductId(savedProduct.getId());
-            menuProduct.setQuantity(3);
-
-            Menu menu = new Menu();
-            menu.setName("얌 프라이");
-            menu.setPrice(BigDecimal.valueOf(-1000));
-            menu.setMenuGroupId(4L);
-            menu.setMenuProducts(Collections.singletonList(menuProduct));
-
-            // when
-            // then
-            assertThatThrownBy(() -> menuService.create(menu))
-                .isInstanceOf(IllegalArgumentException.class);
-        }
-
-        @DisplayName("메뉴의 메뉴 그룹이 존재하지 않으면 등록할 수 없다.")
-        @Test
-        void create_NonExistingMenuGroup_Fail() {
-            // given
-            Product product = new Product();
-            product.setName("얌 프라이");
-            product.setPrice(BigDecimal.valueOf(8000, 2));
-
-            Product savedProduct = productService.create(product);
-
-            MenuProduct menuProduct = new MenuProduct();
-            menuProduct.setMenuId(7L);
-            menuProduct.setProductId(savedProduct.getId());
-            menuProduct.setQuantity(3);
-
-            Menu menu = new Menu();
-            menu.setName("얌 프라이");
-            menu.setPrice(BigDecimal.valueOf(-1000));
-            menu.setMenuGroupId(100L);
-            menu.setMenuProducts(Collections.singletonList(menuProduct));
-
-            // when
-            // then
-            assertThatThrownBy(() -> menuService.create(menu))
-                .isInstanceOf(IllegalArgumentException.class);
-        }
-
-        @DisplayName("메뉴의 메뉴 상품이 존재하지 않으면 등록할 수 없다.")
-        @Test
-        void create_NonExistingMenuProduct_Fail() {
-            // given
-            Menu menu = new Menu();
-            menu.setName("얌 프라이");
-            menu.setPrice(BigDecimal.valueOf(-1000));
-            menu.setMenuGroupId(4L);
-            menu.setMenuProducts(Collections.emptyList());
-
-            // when
-            // then
-            assertThatThrownBy(() -> menuService.create(menu))
-                .isInstanceOf(IllegalArgumentException.class);
-        }
-
-        @DisplayName("메뉴의 수량이 올바르지 않으면 등록할 수 없다. - 0개인 경우")
-        @Test
-        void create_InvalidQuantityWithZero_Fail() {
-            // given
-            Product product = new Product();
-            product.setName("얌 프라이");
-            product.setPrice(BigDecimal.valueOf(8000, 2));
-
-            Product savedProduct = productService.create(product);
-
-            MenuProduct menuProduct = new MenuProduct();
-            menuProduct.setMenuId(7L);
-            menuProduct.setProductId(savedProduct.getId());
-            menuProduct.setQuantity(0);
-
-            Menu menu = new Menu();
-            menu.setName("얌 프라이");
-            menu.setPrice(BigDecimal.valueOf(8000, 2));
-            menu.setMenuGroupId(4L);
-            menu.setMenuProducts(Collections.singletonList(menuProduct));
-
-            // when
-            // then
-            assertThatThrownBy(() -> menuService.create(menu))
-                .isInstanceOf(IllegalArgumentException.class);
-        }
-
-        @DisplayName("메뉴의 수량이 올바르지 않으면 등록할 수 없다. - 0개 이하인 경우")
-        @Test
-        void create_InvalidQuantityWithNegative_Fail() {
-            // given
-            Product product = new Product();
-            product.setName("얌 프라이");
-            product.setPrice(BigDecimal.valueOf(8000, 2));
-
-            Product savedProduct = productService.create(product);
-
-            MenuProduct menuProduct = new MenuProduct();
-            menuProduct.setMenuId(7L);
-            menuProduct.setProductId(savedProduct.getId());
-            menuProduct.setQuantity(-2);
-
-            Menu menu = new Menu();
-            menu.setName("얌 프라이");
-            menu.setPrice(BigDecimal.valueOf(8000, 2));
-            menu.setMenuGroupId(4L);
-            menu.setMenuProducts(Collections.singletonList(menuProduct));
-
-            // when
-            // then
-            assertThatThrownBy(() -> menuService.create(menu))
-                .isInstanceOf(IllegalArgumentException.class);
-        }
+        // then
+        assertThat(responseDto.getId()).isNotNull();
+        assertThat(responseDto.getMenuProducts()).hasSize(1);
     }
 
-    @DisplayName("메뉴의 목록을 조회한다.")
-    @Nested
-    class Read {
+    @DisplayName("메뉴의 가격이 올바르지 않으면 등록할 수 없다. - null인 경우")
+    @Test
+    void create_InvalidPriceWithNull_Fail() {
+        // given
+        ProductResponseDto productResponseDto = productService
+            .create(new ProductRequestDto("얌 프라이", BigDecimal.valueOf(8000)));
+        MenuGroupResponseDto menuGroupResponseDto = menuGroupService
+            .create(new MenuGroupRequestDto("시즌 메뉴"));
 
-        @DisplayName("메뉴의 목록을 조회할 수 있다.")
-        @Test
-        void list_Valid_Success() {
-            // given
-            Product product = new Product();
-            product.setName("얌 프라이");
-            product.setPrice(BigDecimal.valueOf(8000, 2));
+        MenuProductRequestDto menuProduct = new MenuProductRequestDto(
+            productResponseDto.getId(),
+            2L
+        );
+        MenuRequestDto requestDto = new MenuRequestDto(
+            "얌 프라이",
+            null,
+            menuGroupResponseDto.getId(),
+            Collections.singletonList(menuProduct)
+        );
 
-            Product savedProduct = productService.create(product);
+        // when
+        // then
+        assertThatThrownBy(() -> menuService.create(requestDto))
+            .isInstanceOf(IllegalArgumentException.class);
+    }
 
-            MenuProduct menuProduct = new MenuProduct();
-            menuProduct.setMenuId(7L);
-            menuProduct.setProductId(savedProduct.getId());
-            menuProduct.setQuantity(3);
+    @DisplayName("메뉴의 가격이 올바르지 않으면 등록할 수 없다. - 0 이하인 경우")
+    @Test
+    void create_InvalidPriceWithNegative_Fail() {
+        // given
+        ProductResponseDto productResponseDto = productService
+            .create(new ProductRequestDto("얌 프라이", BigDecimal.valueOf(8000)));
+        MenuGroupResponseDto menuGroupResponseDto = menuGroupService
+            .create(new MenuGroupRequestDto("시즌 메뉴"));
 
-            Menu menu = new Menu();
-            menu.setName("얌 프라이");
-            menu.setPrice(BigDecimal.valueOf(8000, 2));
-            menu.setMenuGroupId(4L);
-            menu.setMenuProducts(Collections.singletonList(menuProduct));
+        MenuProductRequestDto menuProduct = new MenuProductRequestDto(
+            productResponseDto.getId(),
+            2L
+        );
+        MenuRequestDto requestDto = new MenuRequestDto(
+            "얌 프라이",
+            BigDecimal.valueOf(-1000),
+            menuGroupResponseDto.getId(),
+            Collections.singletonList(menuProduct)
+        );
 
-            Menu savedMenu = menuService.create(menu);
+        // when
+        // then
+        assertThatThrownBy(() -> menuService.create(requestDto))
+            .isInstanceOf(IllegalArgumentException.class);
+    }
 
-            // when
-            List<Menu> menus = menuService.list();
+    @DisplayName("메뉴의 메뉴 상품이 존재하지 않으면 등록할 수 없다.")
+    @Test
+    void create_NonExistingMenuProduct_Fail() {
+        // given
+        MenuGroupResponseDto menuGroupResponseDto = menuGroupService
+            .create(new MenuGroupRequestDto("시즌 메뉴"));
 
-            // then
-            assertThat(menus).hasSize(7);
-            assertThat(menus.get(6))
-                .usingRecursiveComparison()
-                .isEqualTo(savedMenu);
-        }
+        MenuProductRequestDto menuProduct = new MenuProductRequestDto(
+            1L,
+            2L
+        );
+        MenuRequestDto requestDto = new MenuRequestDto(
+            "얌 프라이",
+            BigDecimal.valueOf(-1000),
+            menuGroupResponseDto.getId(),
+            Collections.singletonList(menuProduct)
+        );
+
+        // when
+        // then
+        assertThatThrownBy(() -> menuService.create(requestDto))
+            .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @DisplayName("메뉴의 메뉴 그룹이 존재하지 않으면 등록할 수 없다.")
+    @Test
+    void create_NonExistingMenuGroup_Fail() {
+        // given
+        ProductResponseDto productResponseDto = productService
+            .create(new ProductRequestDto("얌 프라이", BigDecimal.valueOf(8000)));
+
+        MenuProductRequestDto menuProduct = new MenuProductRequestDto(
+            productResponseDto.getId(),
+            2L
+        );
+        MenuRequestDto requestDto = new MenuRequestDto(
+            "얌 프라이",
+            null,
+            1L,
+            Collections.singletonList(menuProduct)
+        );
+
+        // when
+        // then
+        assertThatThrownBy(() -> menuService.create(requestDto))
+            .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @DisplayName("메뉴의 목록을 조회할 수 있다.")
+    @Test
+    void list_Valid_Success() {
+        // given
+        ProductResponseDto productResponseDto = productService
+            .create(new ProductRequestDto("얌 프라이", BigDecimal.valueOf(8000)));
+        MenuGroupResponseDto menuGroupResponseDto = menuGroupService
+            .create(new MenuGroupRequestDto("시즌 메뉴"));
+
+        MenuProductRequestDto menuProduct = new MenuProductRequestDto(
+            productResponseDto.getId(),
+            2L
+        );
+        MenuRequestDto requestDto = new MenuRequestDto(
+            "얌 프라이",
+            BigDecimal.valueOf(8000),
+            menuGroupResponseDto.getId(),
+            Collections.singletonList(menuProduct)
+        );
+
+        menuService.create(requestDto);
+
+        // when
+        java.util.List<MenuResponseDto> responses = menuService.list();
+
+        // then
+        assertThat(responses).hasSize(1);
     }
 }
