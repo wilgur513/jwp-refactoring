@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.math.BigDecimal;
 import kitchenpos.Fixtures;
+import kitchenpos.menu.domain.Menu;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -13,7 +14,7 @@ class MenuTest {
     @Test
     void menuCreate() {
         assertThatThrownBy(() -> {
-            new Menu("후라이드치킨", BigDecimal.valueOf(-16000.00), Fixtures.makeMenuGroup());
+            new Menu("후라이드치킨", BigDecimal.valueOf(-16000.00), Fixtures.makeMenuGroup().getId());
         }).isInstanceOf(IllegalArgumentException.class);
     }
 }

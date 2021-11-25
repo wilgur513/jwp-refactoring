@@ -8,12 +8,13 @@ import static org.mockito.Mockito.verify;
 
 import java.util.Optional;
 import kitchenpos.Fixtures;
-import kitchenpos.dao.OrderRepository;
-import kitchenpos.dao.OrderTableRepository;
-import kitchenpos.dao.TableGroupRepository;
-import kitchenpos.domain.OrderTable;
-import kitchenpos.domain.TableGroup;
-import kitchenpos.dto.OrderTableRequest;
+import kitchenpos.order.domain.OrderTable;
+import kitchenpos.order.dto.OrderTableRequest;
+import kitchenpos.order.repository.OrderRepository;
+import kitchenpos.order.repository.OrderTableRepository;
+import kitchenpos.table.application.TableService;
+import kitchenpos.table.domain.TableGroup;
+import kitchenpos.table.repository.TableGroupRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -47,8 +48,6 @@ class TableServiceTest {
     @Test
     void create() {
         TableGroup tableGroup = Fixtures.makeTableGroup();
-        given(tableGroupRepository.findById(anyLong()))
-            .willReturn(Optional.of(tableGroup));
 
         OrderTableRequest orderTableRequest = new OrderTableRequest(1L, 1, true);
 

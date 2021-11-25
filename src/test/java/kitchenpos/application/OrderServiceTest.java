@@ -11,18 +11,19 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import kitchenpos.Fixtures;
-import kitchenpos.dao.MenuRepository;
-import kitchenpos.dao.OrderLineItemRepository;
-import kitchenpos.dao.OrderRepository;
-import kitchenpos.dao.OrderTableRepository;
-import kitchenpos.domain.Menu;
-import kitchenpos.domain.Order;
-import kitchenpos.domain.OrderLineItem;
-import kitchenpos.domain.OrderStatus;
-import kitchenpos.domain.OrderTable;
-import kitchenpos.domain.TableGroup;
-import kitchenpos.dto.OrderLineItemRequest;
-import kitchenpos.dto.OrderRequest;
+import kitchenpos.menu.application.MenuService;
+import kitchenpos.menu.domain.Menu;
+import kitchenpos.order.application.OrderLineItemService;
+import kitchenpos.order.application.OrderService;
+import kitchenpos.order.application.OrderTableService;
+import kitchenpos.order.domain.Order;
+import kitchenpos.order.domain.OrderLineItem;
+import kitchenpos.order.domain.OrderStatus;
+import kitchenpos.order.domain.OrderTable;
+import kitchenpos.order.dto.OrderLineItemRequest;
+import kitchenpos.order.dto.OrderRequest;
+import kitchenpos.order.repository.OrderRepository;
+import kitchenpos.table.domain.TableGroup;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -57,11 +58,11 @@ class OrderServiceTest {
     @BeforeEach
     void setUp() {
         TableGroup tableGroup = new TableGroup(1L);
-        orderTable = new OrderTable(1L, tableGroup, 1, false);
-        order = new Order(orderTable, OrderStatus.COOKING);
+        orderTable = new OrderTable(1L, tableGroup.getId(), 1, false);
+        order = new Order(orderTable.getId(), OrderStatus.COOKING);
         menu = Fixtures.makeMenu();
 
-        orderLineItem = new OrderLineItem(1L, order, menu, 1L);
+        orderLineItem = new OrderLineItem(1L, order, menu.getId(), 1L);
 
         orderLineItems = new ArrayList<>();
         orderLineItems.add(orderLineItem);
@@ -73,12 +74,8 @@ class OrderServiceTest {
     @DisplayName("order 생성")
     @Test
     void create() {
-        given(orderTableService.findById(anyLong()))
-            .willReturn(orderTable);
         given(orderRepository.save(any(Order.class)))
             .willReturn(order);
-        given(menuService.findById(anyLong()))
-            .willReturn(menu);
 
         OrderLineItemRequest orderLineItemRequest = new OrderLineItemRequest(1L, 1);
 

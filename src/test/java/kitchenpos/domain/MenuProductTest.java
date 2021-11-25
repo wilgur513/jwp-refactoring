@@ -1,10 +1,11 @@
 package kitchenpos.domain;
 
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-
 import kitchenpos.Fixtures;
+import kitchenpos.menu.domain.Menu;
+import kitchenpos.menu.domain.MenuProduct;
+import kitchenpos.product.domain.Product;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -18,7 +19,7 @@ class MenuProductTest {
         Product product = Fixtures.makeProduct();
         long quantity = -1;
         assertThrows(IllegalArgumentException.class,
-            () -> new MenuProduct(seq, menu, product, quantity));
+            () -> new MenuProduct(seq, menu, product.getId(), quantity));
     }
 
 }

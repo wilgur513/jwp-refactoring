@@ -4,23 +4,23 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.BDDMockito.given;
-import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Optional;
-import kitchenpos.dao.MenuGroupRepository;
-import kitchenpos.dao.MenuProductRepository;
-import kitchenpos.dao.MenuRepository;
-import kitchenpos.dao.ProductRepository;
-import kitchenpos.domain.Menu;
-import kitchenpos.domain.MenuGroup;
-import kitchenpos.domain.MenuProduct;
-import kitchenpos.domain.Product;
-import kitchenpos.dto.MenuRequest;
+import kitchenpos.menu.application.MenuGroupService;
+import kitchenpos.menu.application.MenuProductService;
+import kitchenpos.menu.application.MenuService;
+import kitchenpos.menu.domain.Menu;
+import kitchenpos.menu.domain.MenuGroup;
+import kitchenpos.menu.domain.MenuProduct;
+import kitchenpos.menu.dto.MenuRequest;
+import kitchenpos.menu.dto.MenuRequestEvent;
+import kitchenpos.menu.repository.MenuRepository;
+import kitchenpos.product.application.ProductService;
+import kitchenpos.product.domain.Product;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -28,6 +28,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 
 @ExtendWith(MockitoExtension.class)
 class MenuServiceTest {
@@ -53,12 +54,15 @@ class MenuServiceTest {
     @Mock
     private ProductService productService;
 
+    @Mock
+    private ApplicationEventPublisher publisher;
+
     @BeforeEach
     void setUp() {
         menuGroup = new MenuGroup(1L, "한마리치킨");
-        menu = new Menu(1L, "후라이드치킨", BigDecimal.valueOf(16000.00), menuGroup);
+        menu = new Menu(1L, "후라이드치킨", BigDecimal.valueOf(16000.00), menuGroup.getId());
         product = new Product(1L, "후라이드", BigDecimal.valueOf(16000.00));
-        menuProduct = new MenuProduct(1L, menu, product, 1L);
+        menuProduct = new MenuProduct(1L, menu, product.getId(), 1L);
 
         menuProducts = new ArrayList<>();
         menuProducts.add(menuProduct);
@@ -72,27 +76,19 @@ class MenuServiceTest {
     @DisplayName("메뉴 생성")
     @Test
     void create() {
-        given(menuGroupService.findById(anyLong()))
-            .willReturn(menuGroup);
-        given(productService.findById(anyLong()))
-            .willReturn(product);
-        given(menuRepository.save(any(Menu.class)))
-            .willReturn(menu);
-
         MenuRequest menuRequest = new MenuRequest("후라이드치킨", 16000.00, menuGroup.getId(),
             Collections.singletonList(product.getId()), 1);
 
         menuService.create(menuRequest);
 
-        verify(menuRepository).save(any(Menu.class));
-        verify(menuProductService).saveAll(any(Menu.class), anyList(), anyLong());
+        verify(publisher).publishEvent(any(MenuRequestEvent.class));
     }
 
 
     @DisplayName("메뉴 불러오기")
     @Test
     void list() {
-        Menu otherMenu = new Menu(2L, "양념치킨", BigDecimal.valueOf(17000.00), menuGroup);
+        Menu otherMenu = new Menu(2L, "양념치킨", BigDecimal.valueOf(17000.00), menuGroup.getId());
         menus.add(otherMenu);
 
         given(menuRepository.findAll())

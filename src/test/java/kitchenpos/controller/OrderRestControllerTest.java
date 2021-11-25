@@ -12,11 +12,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.ArrayList;
 import java.util.List;
 import kitchenpos.Fixtures;
-import kitchenpos.application.OrderService;
-import kitchenpos.domain.Order;
-import kitchenpos.domain.OrderStatus;
-import kitchenpos.dto.OrderRequest;
-import kitchenpos.ui.OrderRestController;
+import kitchenpos.order.application.OrderService;
+import kitchenpos.order.domain.Order;
+import kitchenpos.order.domain.OrderStatus;
+import kitchenpos.order.dto.OrderRequest;
+import kitchenpos.order.ui.OrderRestController;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -71,7 +71,7 @@ class OrderRestControllerTest {
     @DisplayName("주문 상태 수정")
     @Test
     void update() throws Exception {
-        Order updateOrder = new Order(1L, Fixtures.makeOrderTable(), OrderStatus.MEAL);
+        Order updateOrder = new Order(1L, Fixtures.makeOrderTable().getId(), OrderStatus.MEAL);
 
         ObjectMapper objectMapper = new ObjectMapper();
 
